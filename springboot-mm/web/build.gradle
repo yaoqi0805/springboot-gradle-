@@ -1,0 +1,8 @@
+apply plugin: 'war'
+description = ''
+
+dependencies {
+    compile project(':modules')
+
+}
+

@@ -1,0 +1,158 @@
+buildscript {
+    ext {
+        springCloudVersion = 'Edgware.SR4'
+        springSecurityOauth2Version = '2.3.2.RELEASE'
+        springSecurityVersion = '4.2.7.RELEASE'
+        springBootVersion = '1.5.14.RELEASE'
+        springFoxVersion = '2.6.0'
+        springVersion = '4.3.16.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+        maven { url 'http://repo.spring.io/plugins-release' }
+    }
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+        classpath 'io.spring.gradle:dependency-management-plugin:1.0.6.RELEASE'
+        classpath 'io.spring.gradle:propdeps-plugin:0.0.10.RELEASE'
+        classpath 'com.github.ksoichiro:gradle-build-info-plugin:0.2.0'
+        classpath 'net.researchgate:gradle-release:2.4.0'
+    }
+}
+
+allprojects  {
+    apply plugin: 'maven'
+    group = 'com.formularoom'
+    version = "${version}"
+}
+// 所有子项目的通用配置
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'idea'
+    // JVM 版本号要求
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    // java编译的时候缺省状态下会因为中文字符而失败
+    //[compileJava,compileTestJava,javadoc]*.options*.encoding = 'UTF-8'
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+    task packageSources(type: Jar) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+   artifacts.archives packageSources
+
+    //定义存储库
+    repositories {
+        mavenLocal()
+        maven { url "http://maven.aliyun.com/nexus/content/groups/public" }
+        //mavenCentral()
+        //jcenter()
+        maven { url "http://repo.spring.io/snapshot" }
+        maven { url "http://repo.spring.io/milestone" }
+        maven { url 'http://maven.springframework.org/release' }
+        maven { url 'http://maven.springframework.org/milestone' }
+//        flatDir {
+//            //本地jar依赖包路径
+//            dirs "$rootProject.projectDir/lib"
+//        }
+    }
+
+    //自定义清单文件
+    jar {
+        manifest {
+            attributes("Implementation-Title": "Gradle")
+        }
+    }
+
+    // 显示当前项目下所有用于 compile 的 jar.
+    task listJars(description: 'Display all compile jars.') << {
+        configurations.compile.each { File file -> println file.name }
+    }
+
+    //定义依赖:声明项目中需要哪些依赖
+    dependencies {
+        compile 'javax.servlet:javax.servlet-api:3.1.0'
+        compile(group: 'org.quartz-scheduler', name: 'quartz', version: '2.2.1') {
+            exclude(module: 'c3p0')
+        }
+        compile(group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '2.2.1') {
+            exclude(module: 'c3p0')
+        }
+        compile group: 'c3p0', name: 'c3p0', version: '0.9.1.2'
+        compile group: 'org.mybatis', name: 'mybatis', version: '3.1.1'
+        compile group: 'org.mybatis', name: 'mybatis-spring', version: '1.1.1'
+        compile group: 'mysql', name: 'mysql-connector-java', version: '5.1.36'
+        compile group: 'org.json', name: 'json', version: '20131018'
+        compile group: 'redis.clients', name: 'jedis', version: '2.9.0'
+        testCompile group: 'junit', name: 'junit', version: '4.12'
+        //compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.5'
+        compileOnly group: 'javax.servlet.jsp', name: 'jsp-api', version: '2.2'
+        //spring-boot依赖包
+
+        //下列dependency采用从父依赖继承版本的方式：Spring Boot 父依赖如下：
+        //这个parent是springboot最最核心的引入，所有的配置都在里面，并且是springboot项目必须引入的
+    }
+}
+
+project(':web') {
+    //描述
+    description = "Cultural Market with boot"
+//    //引用插件
+    apply plugin: 'maven'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'propdeps'
+    apply plugin: "io.spring.dependency-management"
+    apply plugin: 'net.researchgate.release'
+    apply plugin: 'com.github.ksoichiro.build.info'
+
+    apply from: "${rootProject.rootDir}/gradle/winsw.gradle"
+
+    //定义仓库
+    repositories {
+        maven { url "http://repo.spring.io/libs-milestone-local" }
+        maven { url "http://repo.spring.io/libs-release-local" }
+        maven { url "http://repo.maven.apache.org/maven2" }
+
+    }
+
+//    dependencyManagement里只是声明依赖，并不实现引入，因此子项目需要显示的声明需要用的依赖。
+//    如果不在子项目中声明依赖，是不会从父项目中继承下来的；只有在子项目中写了该依赖项，并且没
+//    有指定具体版本，才会从父项目中继承该项，并且version和scope都读取自父pom;另外如果子项目中
+//    指定了版本号，那么会使用子项目中指定的jar版本
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+            mavenBom "org.springframework.security:spring-security-bom:${springSecurityVersion}"
+        }
+    }
+
+    //定义依赖
+    dependencies {
+        compile group: 'org.apache.log4j', name: 'com.springsource.org.apache.log4j', version: '1.2.15'
+    }
+
+    springBoot {
+        buildInfo()
+    }
+
+    buildInfo {
+        committerDateFormat 'yyyy-MM-dd HH:mm:ss Z'
+        buildDateFormat 'yyyy-MM-dd HH:mm:ss Z'
+        manifestEnabled true
+        gitPropertiesEnabled true
+        gitInfoMode com.github.ksoichiro.build.info.BuildInfoExtension.MODE_DEFAULT
+        warnIfGitDirectoryIsMissing false
+        attributeGitBranchEnabled true
+        attributeGitCommitEnabled true
+        attributeGitCommitterDateEnabled true
+        attributeBuildDateEnabled true
+        attributeBuildJavaVersionEnabled true
+        attributeBuildJavaVendorEnabled true
+        attributeBuildOsNameEnabled true
+        attributeBuildOsVersionEnabled true
+    }
+
+}
+
