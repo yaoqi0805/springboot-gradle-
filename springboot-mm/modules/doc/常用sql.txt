@@ -1,0 +1,36 @@
+--生产线的停产、限产报告
+select*from ol_psinfo ps
+inner join ol_portinfo po on po.ps_id = ps.id
+inner join ol_ps_stop s on s.ps_id = ps.id and s.port_id = po.id
+--超标、异常数据
+select*from ol_data_alarm a
+inner join ol_psinfo ps on ps.psinfoid = a.ps_id
+inner join ol_portinfo po on po.ps_id = ps.id and po.portcode = a.port_id
+
+select*from ol_data_abnormal a
+inner join ol_psinfo ps on ps.psinfoid = a.ps_id
+inner join ol_portinfo po on po.ps_id = ps.id and po.id = a.port_id
+
+--数采仪
+select*from ol_psinfo ps
+inner join ol_portinfo po on po.ps_id = ps.id
+inner join ol_port_dgi d on d.port_id = po.id
+inner join ol_dgiinfo dgi on dgi.id = d.dgi_id
+
+--监测设备
+select*from ol_psinfo ps
+inner join ol_portinfo po on po.ps_id = ps.id
+inner join ol_monitorinfo m on m.ps_id = ps.id and m.port_id = po.id
+
+
+数据库 192.168.11.42 MonitorV3.4 sa newhero.123
+
+
+企业名称、监测点名称、污染物名称、排放标准
+	select   ps.psname,po.portname,p.POLLUTANT_NAME,fa.ALARM_UPLIMIT from ol_psinfo ps
+	left join ol_portinfo po on po.ps_id = ps.id
+	left join ol_port_factor fa on fa.port_id = po.id
+	left join dic_ol_pollutant p on p.POLLUTANT_CODE = fa.POLLUTANT_CODE
+	where 1=1 and ps.enable= 0 and po.enable=0 
+	order by psinfoid asc,portcode asc
+

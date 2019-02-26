@@ -1,0 +1,338 @@
+（一）yum介绍
+	Yum(全称为 Yellow dogUpdater, Modified)是一个在Fedora和RedHat以及CentOS中的
+	Shell前端软件包管理器。基于RPM包管理，能够从指定的服务器自动下载RPM包并且安
+	装，可以自动处理依赖性关系，并且一次安装所有依赖的软件包，无须繁琐地一次次下
+	载、安装。yum提供了查找、安装、删除某一个、一组甚至全部软件包的命令，而且命
+	令简洁而又好记。
+	yum -y install 包名（支持*） ：自动选择y，全自动
+	yum install 包名（支持*） ：手动选择y or n
+	yum remove 包名（不支持*）
+	rpm -ivh 包名（支持*）：安装rpm包
+	rpm -e 包名（不支持*）：卸载rpm包
+	
+	ls -lht将会一一列出当前目录下所有文件的大小，以及所有文件大小的统计总和
+
+
+1.reids是什么
+  Redis是一个开源（BSD许可），内存数据结构存储，用作数据库，缓存和消息代理。
+  它支持数据结构，如字符串，散列，列表，集合，带有范围查询的排序集，位图，超级日志，
+  带有半径查询和流的地理空间索引。Redis具有内置复制，Lua脚本，LRU驱逐，事务和不同级别的磁盘持久性，
+  并通过Redis Sentinel提供高可用性并使用Redis Cluster自动分区
+2.redis和memcached相比
+  (1.redis可以用来做存储(storge),而memcached使用来做缓存(cache)
+     这个特点主要是因为其有'持久化'的功能。
+  (2.存储的数据有结果,对于memcached来说存储的数据类型--‘字符串、对象’
+     而redis则可以存储字符串、列表、哈希结构、集合、有序集合
+3./user/local/bin下的工具
+  redis-benchmark    reids性能测试工具
+  redis-check-aop    检查aof日志的工具
+  redis-check-dump   检查rbd日志的工具
+  redis-cli          连接用的客户端
+  redis-server       redis服务进程
+4.让redis以后台进程方式运行
+ 编辑conf配置文件,修改如下内容 daemonize yes
+ bind  服务器ip地址
+ protected-mode 修改保护模式
+ logfile 指定log日志地址
+ database 可以指定初始化多少个DB (select index是查看哪个DB) 默认操作0号DB
+5.命令
+ keys pattern(模式) 支持{
+                        查询所有keys *
+ 						匹配查询带有's'字符的键 keys s
+						支持正则表达式查询 keys sit[ey]}
+						通配符:*通配所有字符
+						       []通配括号内的某1个字符
+							   ？通配单个字符
+ randomkey 随机返回键名
+ ttl 以秒为单位，返回给定 key 的剩余生存时间(TTL, time to live)。
+ expire 为给定 key 设置生存时间，当 key 过期时(生存时间为 0 )，它会被自动删除。
+ flush 冲刷DB即清空数据库
+ 
+6.事务(保证原子性)
+ multi 开始事务
+  ... 将语句放进队列中
+  ... queued
+  ... queued
+ exec  提交
+ 在multi后面的语句中,语句出错可能有2中情况
+   （1，语法就有问题:这种exec时报错,所有语句得不到执行
+    (2. 语法本身没错,但适用对象有问题,比如zadd操作link对象:exec之后,会执行正确的语句,并跳过有不适当的语句
+	如果有zadd操作link对象这种事怎么避免? 由程序员负责
+ redis的事务中启用的是乐观锁，只负责监测key有没有被改动
+ watch ticket 
+ multi
+ ...
+ ...
+ exec
+ (nil) //返回nil说明监视的ticket已经改变了，事务就取消
+
+7.redis持久化配置(方式有两种)
+  （1.快照
+      rdb快照的配置选项
+	  
+	  save 900 1     900秒内有1条写入则产生快照
+	  save 300 10    300秒内有10条写入则产生快照
+	  save 60  10000 60秒内有10000条写入则产生快照
+	  (着3个选项都屏蔽,则rdb禁用
+	stop-writes-on-bgsave-error yes  //后台备份进程出错时,主进程停不停止写入
+	rdbcompression yes               //导出的rdb文件是否压缩
+	rdbchecksum yes                  //导入rdb恢复数据时,要不要检测rdb的完整性
+	dbfilename dump.rdb              //导出来rdb文件名
+	dir ./                           //rdb的放置路径
+	  
+	  
+	  
+   (2.日志
+   appendonly yes            是否打开aof日志功能
+   
+   appendfsync always        每一个命令都同步到aof安全速度慢
+   appendfsync everysec      每秒写一次
+   appendfsync no            写入工作交给操作系统，由操作系统判断缓冲区大小统一写入到aof,同步频率低速度快
+   
+   no-appendfsync-on-rewrite yes     正在导出rdb快照的过程冲要不要停止同步aof
+   auto-aof-rewrite-percentage 100   aof文件大小比起上次重写时的大小,增长率100%时重写
+   auto-aof-rewrite-min-size 64mb    aof文件至少超过64mb时重写
+   
+   问:在dump rdb过程中,aof如果停止同步,会不会丢失
+   答:不会,所有的操作缓存在内存的队列里,dump完成后,统一操作
+   
+   问:aof重写是指什么
+   答:是把内存中的数据,逆化成命令,写入到aof日志中
+   
+   问:如果rdb文件和aof文件都存在,优先用谁来恢复数据
+   答:aof
+   
+   问:2种是否可以同时使用
+   答:可以,而且推荐这么做
+   
+   问:恢复时rdb和aof哪个恢复的快
+   答:rdb快,因为rdb是数据的内存映射,直接载入到内存,aof是命令,需要逐条执行
+8.集群的作用(主从模式，可实现读写分离；高可用模式下，主服务出现问题，也可以通过哨兵切换从服务为主服务；可实现主服务不用数据持久化，从服务进行持久化工作，减轻主服务负担等等)
+   (1.主从备份,防止主机宕(dang)机
+   (2.读写分离,分担master的任务
+   (3.任务分类,如从服分担备份工作和计算工作
+   
+   master配置：
+    (1.关闭rdb快照(备份工作交给slave)
+    (1.可以开启aof
+   slave配置
+    (1.replicaof <masterip> <masterport>：配置主服务的ip和端口。配置之后，就是这台机器的小弟了。主服务也能知道谁是他的小弟。
+    (2.masterauth <master-password>：如果主服务需要密码认证，这里需要配置从服务连接主服务的密码。
+    (3.replica-read-only：默认为yes，配置从服务默认为只读模式。
+   缺陷:
+     每次slave断开后(无论是主动断开,还是网络故障)
+	 再次连接master时都要master全部dump出来再aof,即同步的过程都要重新执行1遍
+	 多台slave不要一下都启动起来,否则master可能i/o剧增
+9.redis cluster，redis集群配置。
+	cluster-enabled：默认是注释掉，不启用集群模式的。取消注释即可开启集群模式。
+	cluster-config-file：指定cluster的配置文件，每个cluster的节点都需要这个配置文件，会在简历集群的时候自动填充内容，所以，需要指定为不同的文件。
+	cluster-node-timeout：超过这个时间，某个节点不能被连通，则视该节点为failover状态。
+	
+10.运维命令
+   Config Get   命令用于获取 redis 服务的配置参数。(config get requirepass 测试是否需要验证)
+   Config Set   命令可以动态地调整 Redis 服务器的配置(configuration)而无须重启(redis 127.0.0.1:6379> config set parameter value ).你可以使用它修改配置参数，或者改变 Redis 的持久化(Persistence)方式。
+   time         显示服务器时间.世家戳(秒).微秒数
+   dbsize       当前数据库下有多少键
+   bgrewriteaof 后台进程重写aof
+   bgsave       后台进程重写rdb
+   lastsave     上次保存时间
+   flushdb      清空当前库所有键
+   flushall     清空所有库所有键
+   
+   info——当前redis服务器信息
+ 　　server：一般redis服务器信息，包含以下域：
+        　　redis_version：redis服务器版本号
+        　　redis_git_sha1：Git SHA1
+        　　redis_git_dirty：Git dirty flag
+        　　os：redis服务器的宿主操作系统
+        　　arch_bits：架构（32或64位）
+        　　multiplexing_api：redis所使用的事件处理机制
+        　　gcc_version：编译redis时所使用的GCC版本
+        　　process_id：服务器进程的PID
+        　　run_id ：redis服务器的随机标示符（用于sentinel和集群）
+        　　tcp_port：TCP/IP监听端口
+        　　uptime_in_seconds：自redis服务器启动以来，经过的秒数
+        　　uptime_in_days：自redis服务启动以来，经过的天数
+        　　lru_clock：以分钟为单位进行自增的时钟，用于LRU管理
+　　Clients：已连接客户端信息，包含以下域：
+        　　connected_clients：已连接客户端的数量（不包含通过从属服务器连接的客户端）
+        　　client_longest_output_list：当前连接的客户端当中，最长的输出列表
+        　　client_longest_input_buf：当前连接的客户端当中，最大输出缓存
+        　　blocked_clients：正在等待阻塞命令(BLPOP、BRPOP、BRPOPLPUSH)的客户端的数量
+　　Memory：内存信息，包含以下域：
+       　　 userd_memory：由Redis分配器分配的内存总量，以字节（byte）为单位。
+        　　userd_memory_human：以人类可读的格式返回redis的内存消耗
+        　　userd_memory_rss：从操作系统的角度，返回redis已分配的内存量（俗称常驻集大小）
+        　　userd_memory_peak_human：以人类可读的格式返回redis的内存消耗峰值
+        　　userd_memory_lua：lua引擎所使用的内存大小（以字节为单位）
+        　　men_fragmentation_ration：used_memory_rss和used_memory之间的比率
+        　　mem_allocator：在编译时指定的，redis所使用的内存分配器。可以是libc、jemalloc或者tcmallor。
+	persistence：RDB和AOF的相关信息（Redis 持久化存储）
+	        loading：当前标识正在持久化存储的个数
+        　　rdb_change_since_last_save：
+        　　rdb_bgsave_in_progress：当前标识正在RDB异步存储
+        　　rdb_last_save_time：RDB最后成功保存的时刻
+        　　rdb_last_bgsave_status：最后bgsave（异步存储）的状态
+        　　rdb_last_bgsave_time_sce：最后bgsave成功的操作时间，单位为秒
+        　　rdb_current_bgsave_time_sec：当前正在bgsave操作的时间，单位为秒
+        　　aof_enabled：当前有几个AOF日志在运行
+        　　aof_rewrite_in_progress：表示aof重写操作正在进行
+        　　aof_rewrite_scheduled：表示完成aof重写计划的个数
+        　　aof_last_rewrite_time_sec：表示最后一次重写操作完成的时间，单位秒
+        　　aof_current_rewrite_time_sec：表示当前重写操作完成的时间，单位秒
+        　　aof_last_bgrewrite_statust：表示最后一次异步重写操作的状态。
+        　　aof_alst_write_statust：表示最后一次重写操作的状态。
+	stats：一般统计信息
+        　　total_connections_received：运行以来连接过的客户端总数量
+        　　total_commands_processed：运行以来执行过的命令的总数量
+        　　instantaneous_ops_per_sec：服务器每秒执行过的命令数
+        　　total_net_input_bytes：运行以来输入的字节数大小
+        　　total_net_output_bytes：运行以来输出的字节数大小
+        　　instantaneous_input_kbps：每秒写Kbps
+        　　instantaneous_output_kbps：每秒读取Kbps
+        　　rejected_connections：因为最大客户端的数量限制而被拒绝的连接请求数量
+        　　expired_keys：运行以来过期被删除的key的数量
+        　　evicted_keys：运行以来因为最大内存容量限制而被驱逐（evict）的key的数量
+        　　keyspace_hits：查找数据库键成功的次数
+        　　keyspace_misses：查找数据库键失败的次数
+        　　pubsub_channels：目前被订阅的频道数量
+        　　pubsub_patterns：目前被订阅的模式数量
+        　　latest_fork_usec：最近一次fork（）操作耗费的毫秒数
+	replication：主/从复制信息
+　　CPU：CPU计算量统计信息
+　　commandstats：Redis命令统计信息
+　　cluster：redis集群信息（在后面的章节详细介绍）
+　　keyspace：数据库相关的统计信息
+    keys：当前数据库键数量，expires：其中设置了过期时间的键数量，avg_ttl：设置过过期时间键的平均TTL
+	
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 1、String  
+	常用命令：  
+	除了get、set、incr、decr mget等操作外，Redis还提供了下面一些操作：  
+	获取字符串长度  
+	往字符串append内容  
+	设置和获取字符串的某一段内容  
+	设置及获取字符串的某一位（bit）  
+	批量设置一系列字符串的内容  
+	  
+	应用场景：  
+	String是最常用的一种数据类型，普通的key/value存储都可以归为此类，value其实不仅是String，  
+	也可以是数字：比如想知道什么时候封锁一个IP地址(访问超过几次)。INCRBY命令让这些变得很容易，通过原子递增保持计数。  
+	  
+	实现方式：  
+	m,decr等操作时会转成数值型进行计算，此时redisObject的encoding字段为int。 
+2.hash
+	常用命令：  
+	hget,hset,hgetall 等。  
+	应用场景：  
+	我们简单举个实例来描述下Hash的应用场景，比如我们要存储一个用户信息对象数据，包含以下信息：  
+           用户ID，为查找的key，  
+           存储的value用户对象包含姓名name，年龄age，生日birthday 等信息，  
+   如果用普通的key/value结构来存储，主要有以下2种存储方式：  
+       第一种方式将用户ID作为查找key,把其他信息封装成一个对象以序列化的方式存储，  
+           如：set u001 "李三,18,20010101"  
+           这种方式的缺点是，增加了序列化/反序列化的开销，并且在需要修改其中一项信息时，需要把整个对象取回，并且修改操作需要对并发进行保护，引入CAS等复杂问题。  
+       第二种方法是这个用户信息对象有多少成员就存成多少个key-value对儿，用用户ID+对应属性的名称作为唯一标识来取得对应属性的值，  
+           如：mset user:001:name "李三 "user:001:age18 user:001:birthday "20010101"  
+           虽然省去了序列化开销和并发问题，但是用户ID为重复存储，如果存在大量这样的数据，内存浪费还是非常可观的。  
+    那么Redis提供的Hash很好的解决了这个问题，Redis的Hash实际是内部存储的Value为一个HashMap，  
+    并提供了直接存取这个Map成员的接口，  
+        如：hmset user:001 name "李三" age 18 birthday "20010101"     
+            也就是说，Key仍然是用户ID,value是一个Map，这个Map的key是成员的属性名，value是属性值，  
+            这样对数据的修改和存取都可以直接通过其内部Map的Key(Redis里称内部Map的key为field), 也就是通过   
+            key(用户ID) + field(属性标签) 操作对应属性数据了，既不需要重复存储数据，也不会带来序列化和并发修改控制的问题。很好的解决了问题。  
+  
+          这里同时需要注意，Redis提供了接口(hgetall)可以直接取到全部的属性数据,但是如果内部Map的成员很多，那么涉及到遍历整个内部Map的操作，
+		  由于Redis单线程模型的缘故，这个遍历操作可能会比较耗时，而另其它客户端的请求完全不响应，这点需要格外注意。  
+  实现方式：  
+    上面已经说到Redis Hash对应Value内部实际就是一个HashMap，实际这里会有2种不同实现，这个Hash的成员比较少时Redis为了节省内存会采用类似一维数
+	组的方式来紧凑存储，而不会采用真正的HashMap结构，对应的value redisObject的encoding为zipmap,当成员数量增大时会自动转成真正的HashMap,此时encoding为ht。	
+3.list
+	常用命令：  
+		lpush,rpush,lpop,rpop,lrange,BLPOP(阻塞版)等。  
+	  
+	应用场景：  
+		Redis list的应用场景非常多，也是Redis最重要的数据结构之一。  
+		我们可以轻松地实现最新消息排行等功能。  
+		Lists的另一个应用就是消息队列，可以利用Lists的PUSH操作，将任务存在Lists中，然后工作线程再用POP操作将任务取出进行执行。  
+	  
+	实现方式：  
+		Redis list的实现为一个双向链表，即可以支持反向查找和遍历，更方便操作，不过带来了部分额外的内存开销，Redis内部的很多实现，
+		包括发送缓冲队列等也都是用的这个数据结构。  
+	  
+	RPOPLPUSH source destination  
+	  
+		命令 RPOPLPUSH 在一个原子时间内，执行以下两个动作：  
+		将列表 source 中的最后一个元素(尾元素)弹出，并返回给客户端。  
+		将 source 弹出的元素插入到列表 destination ，作为 destination 列表的的头元素。  
+		如果 source 和 destination 相同，则列表中的表尾元素被移动到表头，并返回该元素，可以把这种特殊情况视作列表的旋转(rotation)操作。  
+		一个典型的例子就是服务器的监控程序：它们需要在尽可能短的时间内，并行地检查一组网站，确保它们的可访问性。  
+		redis.lpush "downstream_ips", "192.168.0.10"  
+		redis.lpush "downstream_ips", "192.168.0.11"  
+		redis.lpush "downstream_ips", "192.168.0.12"  
+		redis.lpush "downstream_ips", "192.168.0.13"  
+		Then:  
+		next_ip = redis.rpoplpush "downstream_ips", "downstream_ips"  
+	  
+	BLPOP  
+	  
+	  假设现在有 job 、 command 和 request 三个列表，其中 job 不存在， command 和 request 都持有非空列表。考虑以下命令：  
+	  BLPOP job command request 30  #阻塞30秒，0的话就是无限期阻塞,job列表为空,被跳过,紧接着command 列表的第一个元素被弹出。  
+	  1) "command"                             # 弹出元素所属的列表  
+	  2) "update system..."                    # 弹出元素所属的值   
+	  为什么要阻塞版本的pop呢，主要是为了避免轮询。举个简单的例子如果我们用list来实现一个工作队列。执行任务的thread可以调用阻塞版本的
+	  pop去获取任务这样就可以避免轮询去检查是否有任务存在。当任务来时候工作线程可以立即返回，也可以避免轮询带来的延迟。 
+
+6.消息订阅
+	Pub/Sub 从字面上理解就是发布（Publish）与订阅（Subscribe），在Redis中，你可以设定对某一个key值进行消息发布及消息订阅，  
+		当一个key值上进行了消息发布后，所有订阅它的客户端都会收到相应的消息。这一功能最明显的用法就是用作实时消息系统，比如普通的即时聊天，群聊等功能。  
+	  
+	客户端1：subscribe  rain  
+	客户端2：PUBLISH  rain "my love!!!"  
+		(integer) 2 代表有几个客户端订阅了这个消息  	  
+ 
+
+	 
+	 

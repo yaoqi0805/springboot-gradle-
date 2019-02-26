@@ -1,0 +1,28 @@
+select x.ps_id,x.port_id,x.START_TIME,min(Y.END_TIME) END_TIME from (
+	select t1.ps_id,t1.port_id,t1.START_TIME 
+	from ol_ps_stop t1
+	left join ol_ps_stop as t2 on t1.START_TIME > t2.START_TIME and t1.START_TIME<=t2.END_TIME
+  and t1.PS_ID = t2.PS_ID and t1.port_id = t2.port_id
+	
+	where ((t1.START_TIME between '2018-01-01 00:00:00' and '2018-12-01 19:00:00' or t1.END_TIME between '2018-01-01 00:00:00' and '2018-12-01 19:00:00') 
+	or ( t1.START_TIME < '2018-01-01 00:00:00' and t1.END_TIME > '2018-12-01 19:00:00' ))
+	and t1.ps_id = '033a0905335041a09a4174edc7787aba'
+
+	
+	group by t1.ps_id,t1.port_id,t1.START_TIME 
+	having count(t2.START_TIME) =0
+) as x
+inner join (
+  select t3.ps_id,t3.port_id,t3.end_time
+  from ol_ps_stop t3
+  left join ol_ps_stop as t4 on t3.END_TIME >=t4.start_time and t3.END_TIME <= t4.END_TIME
+  and t3.PS_ID = t4.PS_ID and t3.port_id = t4.port_id
+	
+		where ((t3.START_TIME between '2018-01-01 00:00:00' and '2018-12-01 19:00:00' or t3.END_TIME between '2018-01-01 00:00:00' and '2018-12-01 19:00:00') 
+	or ( t3.START_TIME < '2018-01-01 00:00:00' and t3.END_TIME > '2018-12-01 19:00:00' ))
+	and t3.ps_id = '033a0905335041a09a4174edc7787aba'
+	group by t3.ps_id,t3.port_id,t3.end_time 
+	having count(t3.START_TIME) = 1
+) as y
+on X.START_TIME <= Y.end_time AND X.ps_id =Y.ps_id AND X.port_id =Y.port_id
+ GROUP BY x.ps_id,x.port_id,x.START_TIME 

@@ -1,5 +1,6 @@
 package com.formularoom.controller;
 
+import com.formularoom.mata_annotation.Apple;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -12,6 +13,7 @@ public class aa {
     @RequestMapping(value = "/aa", method = RequestMethod.GET)
     @ResponseBody
     public String test1() {
-        return "spring boot multiple modules test";
+        Apple apple = new Apple();
+        return apple.toString();
     }
 }
