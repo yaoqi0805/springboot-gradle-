@@ -3,6 +3,6 @@ description = ''
 
 dependencies {
     compile project(':modules')
-
+    compile group: 'com.offbytwo.jenkins', name: 'jenkins-client', version: '0.3.8'
 }
 

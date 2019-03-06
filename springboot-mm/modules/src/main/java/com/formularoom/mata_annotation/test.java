@@ -1,12 +1,17 @@
 package com.formularoom.mata_annotation;
 
+import java.awt.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 
 public class test {
 
     public static void main(String [] args) throws NoSuchMethodException {
-        Apple apple = new Apple();
+
+        Toolkit tk = Toolkit.getDefaultToolkit();
+        tk.beep();
+
+        /*Apple apple = new Apple();
         apple.setAppleColor("cc");
 
         Field[] fields = Apple.class.getDeclaredFields();
@@ -29,6 +34,6 @@ public class test {
                 System.out.println(annotation.toString());
             }
             System.out.println("**************************************************\n");
-        }
+        }*/
     }
 }
